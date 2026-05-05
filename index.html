@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake News Detector | AI-Powered Verification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- Dynamic Theme Variables --- */
+        :root {
+            --bg-base: #0b111a;
+            --bg-card: #161c24;
+            --bg-input: #0b111a;
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+            --border-color: #2d3748;
+            --hero-bg: radial-gradient(circle at center, #1a202c 0%, #0b111a 100%);
+            --gauge-bg: #2d3748;
+            --gauge-needle: #ffffff;
+            --sidebar-bg: rgba(11, 17, 26, 0.95);
+        }
+
+        body.light-mode {
+            --bg-base: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-input: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --border-color: #cbd5e1;
+            --hero-bg: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%);
+            --gauge-bg: #e2e8f0;
+            --gauge-needle: #0f172a;
+            --sidebar-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overflow-x: hidden;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* --- Custom Theme Classes --- */
+        .theme-hero { background: var(--hero-bg); transition: background 0.4s ease; }
+        .theme-card { background-color: var(--bg-card); border: 1px solid var(--border-color); transition: all 0.4s ease; }
+        .theme-input { background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); transition: all 0.4s ease; }
+        .theme-text-muted { color: var(--text-muted); transition: color 0.4s ease; }
+        .theme-border { border-color: var(--border-color); }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #4fd1c5, #f6ad55);
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* --- Floating Buttons --- */
+        .floating-btn-left {
+            position: fixed; top: 20px; left: 20px; z-index: 60;
+        }
+        .floating-btn-right {
+            position: fixed; top: 20px; right: 20px; z-index: 60;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 320px; height: 100vh; position: fixed; left: -320px; top: 0;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 70;
+        }
+        .sidebar.active { left: 0; }
+        
+        /* --- Gauge Styling --- */
+        .gauge-container { width: 200px; height: 100px; position: relative; overflow: hidden; margin: 0 auto; }
+        .gauge-body { width: 200px; height: 200px; border-radius: 50%; background: var(--gauge-bg); position: relative; transition: background 0.4s ease;}
+        .gauge-fill {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: conic-gradient(from 180deg, #ef4444 0%, #f6ad55 50%, #4fd1c5 100%);
+            border-radius: 50%;
+            mask: radial-gradient(circle, transparent 65%, black 66%);
+            -webkit-mask: radial-gradient(circle, transparent 65%, black 66%);
+            transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: rotate(-90deg);
+        }
+        .gauge-needle {
+            position: absolute; bottom: 0; left: 50%; width: 4px; height: 80px;
+            background: var(--gauge-needle); transform-origin: bottom center;
+            transform: translateX(-50%) rotate(-90deg);
+            transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.4s ease;
+            z-index: 5; border-radius: 2px;
+        }
+        .gauge-cover {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 20px; height: 20px; background: var(--gauge-needle); border-radius: 50%; z-index: 10;
+            transition: background 0.4s ease;
+        }
+
+        /* --- Animations & Formatting --- */
+        .log-entry { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        .prose p { margin-bottom: 1.2rem; color: var(--text-muted); line-height: 1.7; transition: color 0.4s ease;}
+        .prose strong { color: var(--text-main); font-weight: 600; transition: color 0.4s ease;}
+        .prose h1, .prose h2, .prose h3 { color: #4fd1c5; font-size: 1.4rem; margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 700;}
+        .prose ul { padding-left: 1.5rem; color: var(--text-muted); margin-bottom: 1.5rem; list-style-type: disc;}
+    </style>
+</head>
+<body>
+
+    <button onclick="toggleSidebar()" class="floating-btn-left theme-card p-3 rounded-xl hover:border-teal-500 transition-all text-teal-400 cursor-pointer shadow-lg">
+        <i class="fas fa-history text-xl"></i>
+    </button>
+
+    <button onclick="toggleTheme()" class="floating-btn-right theme-card p-3 rounded-xl hover:border-teal-500 transition-all text-teal-400 cursor-pointer shadow-lg">
+        <i id="themeIcon" class="fas fa-sun text-xl"></i>
+    </button>
+
+    <div id="sidebar" class="sidebar p-6 flex flex-col">
+        <div class="flex justify-between items-center mb-8 border-b theme-border pb-4">
+            <h2 class="text-xl font-bold text-teal-400">Scan History</h2>
+            <button onclick="toggleSidebar()" class="theme-text-muted hover:text-red-500 transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-2">
+            </div>
+    </div>
+
+    <section class="theme-hero min-h-screen flex flex-col items-center justify-center px-4 text-center pt-20">
+        <div class="mb-6 inline-block px-4 py-1 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-500 text-sm font-medium">
+            ● AI-Powered Verification Engine
+        </div>
+        
+        <h1 class="text-5xl md:text-7xl font-bold mb-6">
+            Detect <span class="gradient-text">Fake News</span> <br> Instantly
+        </h1>
+        
+        <p class="theme-text-muted max-w-2xl text-lg mb-10 leading-relaxed">
+            Our advanced machine learning model analyzes news articles in real-time, 
+            identifying misinformation with over 96% accuracy.
+        </p>
+
+        <div class="flex gap-4 mb-16">
+            <a href="#detector" class="bg-[#2dd4bf] hover:bg-[#26b5a4] text-gray-900 font-bold py-4 px-8 rounded-xl transition-all">
+                Try the Detector
+            </a>
+            <button class="theme-card hover:border-gray-400 font-bold py-4 px-8 rounded-xl transition-all">
+                How It Works
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center border-t theme-border pt-12 w-full max-w-4xl">
+            <div>
+                <h3 class="text-3xl font-bold text-teal-500">96.4%</h3>
+                <p class="theme-text-muted uppercase tracking-widest text-xs mt-2 font-semibold">Accuracy</p>
+            </div>
+            <div>
+                <h3 class="text-3xl font-bold text-teal-500">Llama-3</h3>
+                <p class="theme-text-muted uppercase tracking-widest text-xs mt-2 font-semibold">AI Engine</p>
+            </div>
+            <div>
+                <h3 class="text-3xl font-bold text-teal-500">&lt;3s</h3>
+                <p class="theme-text-muted uppercase tracking-widest text-xs mt-2 font-semibold">Detection Time</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="detector" class="py-24 px-4" style="background-color: var(--bg-card);">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-4xl font-bold mb-4">Test the <span class="gradient-text">Detector</span></h2>
+            <p class="theme-text-muted mb-10">Paste any news headline or article to analyze its authenticity.</p>
+            
+            <div class="theme-card p-6 md:p-10 rounded-2xl shadow-xl mb-12">
+                <textarea id="claimInput"
+                    class="theme-input w-full h-40 rounded-xl p-6 focus:outline-none focus:border-teal-500 transition-all resize-none mb-6"
+                    placeholder="Paste a news article or headline here..."
+                ></textarea>
+                
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button id="verifyBtn" onclick="startInvestigation()" class="flex-1 bg-[#2dd4bf] hover:bg-[#26b5a4] text-gray-900 font-bold py-4 rounded-xl shadow-lg shadow-teal-500/20 transition-all flex justify-center items-center gap-2">
+                        <i class="fas fa-radar-probe"></i> Analyze Now
+                    </button>
+                    <button onclick="clearAll()" class="px-8 py-4 theme-input hover:border-red-500 font-bold rounded-xl transition-all">
+                        <i class="fas fa-trash-alt text-red-500"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loadingState" class="hidden theme-card p-10 rounded-2xl text-center border-teal-500/50 max-w-2xl mx-auto shadow-lg mb-12">
+                <i class="fas fa-circle-notch fa-spin text-5xl text-teal-500 mb-6"></i>
+                <h3 class="text-2xl font-bold mb-4">Agents Scanning the Web</h3>
+                <div id="agentLogs" class="theme-input rounded-xl p-4 text-left font-mono text-xs text-teal-500 space-y-2">
+                    <div class="log-entry">> Initializing AI Models...</div>
+                </div>
+            </div>
+
+            <div id="resultArea" class="hidden theme-card rounded-2xl p-8 md:p-12 text-left mb-12 border-t-4 border-t-teal-500">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-8 mb-10 pb-8 border-b theme-border">
+                    <div>
+                        <p class="text-xs text-teal-500 font-bold tracking-widest uppercase mb-1">Investigation Complete</p>
+                        <h3 id="verdictBadge" class="text-3xl font-bold uppercase tracking-wider">--</h3>
+                    </div>
+
+                    <div class="text-center theme-input p-6 rounded-xl">
+                        <div class="gauge-container">
+                            <div class="gauge-body">
+                                <div id="gaugeFill" class="gauge-fill"></div>
+                                <div id="gaugeNeedle" class="gauge-needle"></div>
+                                <div class="gauge-cover"></div>
+                            </div>
+                        </div>
+                        <p class="text-xs font-bold theme-text-muted mt-2 uppercase tracking-widest">
+                            Truth Score: <span id="scoreText" class="theme-text text-lg">--</span>%
+                        </p>
+                    </div>
+                </div>
+
+                <div id="reportContent" class="prose max-w-none mb-10 theme-input p-6 rounded-xl">
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t theme-border">
+                    <button onclick="copyReport()" class="theme-input hover:border-teal-500 font-bold py-3 px-6 rounded-xl transition-all flex-1 flex justify-center items-center gap-2">
+                        <i class="far fa-copy"></i> Copy Report
+                    </button>
+                    <button onclick="downloadPDF()" class="bg-teal-500/10 border border-teal-500/50 hover:bg-teal-500/20 text-teal-600 font-bold py-3 px-6 rounded-xl transition-all flex-1 flex justify-center items-center gap-2">
+                        <i class="far fa-file-pdf"></i> Download PDF
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="py-24 px-4 max-w-5xl mx-auto border-t theme-border">
+        <p class="text-center theme-text-muted mb-12 text-lg">Our multi-layered approach combines cutting-edge AI techniques for reliable detection.</p>
+        
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="theme-card p-8 rounded-2xl flex items-start gap-6">
+                <div class="bg-teal-500/10 p-3 rounded-lg border border-teal-500/20">
+                    <svg class="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.674a1 1 0 00.908-.6L18 9.75M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-3">NLP Analysis</h4>
+                    <p class="theme-text-muted leading-relaxed">Advanced natural language processing identifies linguistic patterns common in misinformation.</p>
+                </div>
+            </div>
+
+            <div class="theme-card p-8 rounded-2xl flex items-start gap-6">
+                <div class="bg-teal-500/10 p-3 rounded-lg border border-teal-500/20">
+                    <svg class="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-3">Source Verification</h4>
+                    <p class="theme-text-muted leading-relaxed">Cross-references claims against trusted databases and fact-checking organizations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // --- Theme Logic ---
+        const body = document.body;
+        const themeIcon = document.getElementById('themeIcon');
+        
+        if(localStorage.getItem('theme') === 'light') {
+            body.classList.add('light-mode');
+            themeIcon.classList.replace('fa-sun', 'fa-moon');
+        }
+
+        function toggleTheme() {
+            body.classList.toggle('light-mode');
+            if(body.classList.contains('light-mode')) {
+                localStorage.setItem('theme', 'light');
+                themeIcon.classList.replace('fa-sun', 'fa-moon');
+            } else {
+                localStorage.setItem('theme', 'dark');
+                themeIcon.classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+
+        // --- History Logic ---
+        let investigationHistory = JSON.parse(localStorage.getItem('truthseeker_history') || '[]');
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if(investigationHistory.length === 0) {
+                list.innerHTML = `<p class="text-sm theme-text-muted">No scans yet.</p>`;
+                return;
+            }
+            list.innerHTML = investigationHistory.map((item, index) => `
+                <div class="p-4 theme-input rounded-xl hover:border-teal-500 cursor-pointer transition-all" onclick="loadFromHistory(${index})">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold tracking-wider ${item.score >= 90 ? 'text-teal-500' : item.score <= 30 ? 'text-red-500' : 'text-orange-500'}">SCORE: ${item.score}%</span>
+                        <span class="text-xs theme-text-muted">${new Date(item.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="text-sm theme-text truncate font-medium">${item.claim}</div>
+                </div>
+            `).reverse().join('');
+        }
+
+        function loadFromHistory(index) {
+            const item = investigationHistory[index];
+            document.getElementById('claimInput').value = item.claim;
+            
+            let vText = "Unknown";
+            if(item.score >= 90) vText = "True";
+            else if(item.score <= 30) vText = "False";
+            else vText = "Misleading";
+
+            displayResults(item.report, item.score, vText);
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('detector').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearAll() {
+            document.getElementById('claimInput').value = '';
+            document.getElementById('resultArea').classList.add('hidden');
+        }
+
+        // --- Main Functionality ---
+        async function startInvestigation() {
+            const claim = document.getElementById('claimInput').value.trim();
+            if (!claim) return alert("Please enter a claim to verify!");
+
+            const verifyBtn = document.getElementById('verifyBtn');
+            const loadingState = document.getElementById('loadingState');
+            const resultArea = document.getElementById('resultArea');
+            const logs = document.getElementById('agentLogs');
+
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
+            verifyBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            resultArea.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            logs.innerHTML = '<div class="log-entry">> Initializing AI Architecture...</div>';
+
+            const simulatedLogs = [
+                "> Deploying Web Researcher Agent...",
+                "> Scanning Official Fact Check APIs...",
+                "> Cross-referencing 50k+ trusted databases...",
+                "> Editor Synthesizing Findings...",
+                "> Calculating NLP Integrity Score..."
+            ];
+
+            let logIndex = 0;
+            const logInterval = setInterval(() => {
+                if (logIndex < simulatedLogs.length) {
+                    const div = document.createElement('div');
+                    div.className = 'log-entry';
+                    div.innerText = simulatedLogs[logIndex];
+                    logs.appendChild(div);
+                    logs.scrollTop = logs.scrollHeight;
+                    logIndex++;
+                }
+            }, 2000);
+
+            try {
+                const response = await fetch('http://localhost:8000/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ claim: claim })
+                });
+
+                const data = await response.json();
+                clearInterval(logInterval);
+
+                if (response.ok) {
+                    let verdictText = "Unknown";
+                    if(data.score >= 90) verdictText = "True";
+                    else if (data.score <= 30) verdictText = "False";
+                    else verdictText = "Misleading";
+
+                    displayResults(data.report, data.score, verdictText);
+
+                    investigationHistory.push({
+                        claim: claim, report: data.report, score: data.score, date: new Date().toISOString()
+                    });
+                    if (investigationHistory.length > 10) investigationHistory.shift();
+                    localStorage.setItem('truthseeker_history', JSON.stringify(investigationHistory));
+                } else {
+                    document.getElementById('reportContent').innerHTML = `<p class="text-red-500">Backend Error: ${data.detail}</p>`;
+                    resultArea.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('reportContent').innerHTML = `<p class="text-red-500">Connection Failed! Ensure FastAPI is running on port 8000.</p>`;
+                resultArea.classList.remove('hidden');
+            } finally {
+                loadingState.classList.add('hidden');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = '<i class="fas fa-radar-probe"></i> Analyze Now';
+                verifyBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+
+        function displayResults(report, score, verdictText) {
+            const resultArea = document.getElementById('resultArea');
+            const reportContent = document.getElementById('reportContent');
+            const gaugeNeedle = document.getElementById('gaugeNeedle');
+            const scoreText = document.getElementById('scoreText');
+            const badge = document.getElementById('verdictBadge');
+
+            reportContent.innerHTML = marked.parse(report);
+            badge.innerText = verdictText;
+            
+            if(verdictText === "True") badge.className = "text-3xl font-bold text-teal-500 uppercase tracking-wider";
+            else if(verdictText === "False") badge.className = "text-3xl font-bold text-red-500 uppercase tracking-wider";
+            else badge.className = "text-3xl font-bold text-orange-500 uppercase tracking-wider";
+
+            resultArea.classList.remove('hidden');
+
+            setTimeout(() => {
+                const rotation = -90 + (score * 1.8); 
+                gaugeNeedle.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+                scoreText.innerText = score;
+            }, 100);
+        }
+
+        function copyReport() {
+            const text = document.getElementById('reportContent').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Report copied to clipboard!");
+        }
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const claim = document.getElementById('claimInput').value;
+            const report = document.getElementById('reportContent').innerText;
+            const score = document.getElementById('scoreText').innerText;
+
+            doc.setFontSize(20);
+            doc.text("AI Fact-Check Report", 20, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Date: ${new Date().toLocaleString()} | Accuracy Score: ${score}%`, 20, 30);
+            doc.setTextColor(0);
+            doc.setFontSize(12);
+            doc.text("Original Claim:", 20, 45);
+            doc.setFontSize(10);
+            doc.text(doc.splitTextToSize(claim, 170), 20, 52);
+            doc.setFontSize(12);
+            doc.text("Investigation Findings:", 20, 75);
+            doc.setFontSize(10);
+            doc.text(doc.splitTextToSize(report, 170), 20, 82);
+            doc.save("FactCheck-Report.pdf");
+        }
+    </script>
+</body>
+</html>

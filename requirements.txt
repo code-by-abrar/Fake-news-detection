@@ -1,0 +1,42 @@
+# fastapi
+# uvicorn
+# sqlalchemy
+# psycopg2-binary
+# python-dotenv
+# groq
+# langchain-groq
+# crewai
+# litellm
+# duckduckgo-search
+# requests
+# pydantic
+# openai
+
+
+
+# fastapi==0.133.1
+# uvicorn==0.41.0
+# SQLAlchemy==2.0.47
+# psycopg2-binary
+# python-dotenv==1.1.1
+# groq==0.37.1
+# langchain-groq==1.1.2
+# crewai==1.9.3
+# litellm==1.81.16
+# duckduckgo-search==8.1.1
+# requests==2.32.5
+# pydantic==2.11.10
+
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
+groq
+langchain-groq
+crewai
+litellm
+duckduckgo-search
+requests
+pydantic
+openai

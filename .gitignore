@@ -1,0 +1,28 @@
+# --- Security (Most Important) ---
+.env
+*.env
+secrets.json
+credential*.json
+
+# --- Python Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+build/
+dist/
+*.spec
+
+# --- Docker & OS ---
+.docker/
+.DS_Store
+Thumbs.db
+*.log
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+*.swp

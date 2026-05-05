@@ -1,0 +1,9 @@
+#woh file or folders jo hm ignore krna chahte hain
+
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
