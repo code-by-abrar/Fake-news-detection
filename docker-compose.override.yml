@@ -1,14 +1,14 @@
-version: '3.8'
+# version: '3.8'
 
-services:
-  api:
-    # Laptop par folder link karna (Hot Reload)
-    volumes:
-      - .:/app
-    # Code change hone par Uvicorn ko khud reload karne ka hukum
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# services:
+#   api:
+#     # Laptop par folder link karna (Hot Reload)
+#     volumes:
+#       - .:/app
+#     # Code change hone par Uvicorn ko khud reload karne ka hukum
+#     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  db:
-    # Laptop par PGAdmin se connect karne ke liye
-    ports:
-      - "5433:5432"
+#   db:
+#     # Laptop par PGAdmin se connect karne ke liye
+#     ports:
+#       - "5433:5432"
